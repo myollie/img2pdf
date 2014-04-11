@@ -129,6 +129,8 @@ class pdfdoc(object):
 
         if pdf_x < 3.00 or pdf_y < 3.00:
             warning_out("pdf width or height is below 3.00 - decrease the dpi")
+        elif pdf_x > 200.0 or pdf_y > 200.0:
+            error_out(("pdf width or height is above 200.00 - increase the dpi")
 
         # either embed the whole jpeg or deflate the bitmap representation
         if imgformat is "JPEG":
