@@ -566,76 +566,244 @@ def pdf_embedded_string(string):
     string = string.replace(b')', b'\\)')
     return string
 
-parser = argparse.ArgumentParser(
-    description='Lossless conversion/embedding of images (in)to pdf')
-parser.add_argument(
-    'images', metavar='infile', type=str,
-    nargs='+', help='input file(s)')
-parser.add_argument(
-    '-o', '--output', metavar='out', type=argparse.FileType('wb'),
-    default=getattr(sys.stdout, "buffer", sys.stdout),
-    help='output file (default: stdout)')
+def main():
+    rendered_papersizes = ""
+    for k,v in sorted(papersizes.items()):
+        rendered_papersizes += "    %-8s %s\n"%(k,v)
 
-sizeopts = parser.add_mutually_exclusive_group()
-sizeopts.add_argument(
-    '-d', '--dpi', metavar='dpi', type=positive_float,
-    help=('dpi for pdf output. '
-        'If input image does not specify dpi the default is %.2f.  '
-        'Must not be used with -s/--pagesize.') % default_dpi
-)
+    parser = argparse.ArgumentParser(
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            description='''\
+Losslessly convert raster images to PDF without re-encoding JPEG and JPEG2000
+images. This leads to a lossless conversion of JPEG and JPEG2000 images with
+the only added file size coming from the PDF container itself.
 
-sizeopts.add_argument(
-    '-s', '--pagesize', metavar='size', type=valid_size,
-    default=(None, None, None),
-    help=('size of the pdf pages in format AuxBv#, '
-        'where A is width, B is height, u and v are units, # are options. '
-        'You may omit either width or height, but not both.  '
-        'Some common page sizes, such as letter and a4, are also recognized.  '
-        'Units may be specified as (in, cm, mm, pt).  '
-        'Units default to pt when absent.  '
-        'Available options include (! = exact ; ^ = fill ; default = into).  '
-        'Must not be used with -d/--dpi.')
-)
+Other raster graphics formats are losslessly stored in a zip/flate encoding of
+their RGB representation. This might increase file size and does not store
+transparency. There is nothing that can be done about that until the PDF format
+allows embedding other image formats like PNG. Thus, img2pdf is primarily
+useful to convert JPEG and JPEG2000 images to PDF.
+''',
+            epilog='''\
+Colorspace
 
-parser.add_argument(
-    '-t', '--title', metavar='title', type=pdf_embedded_string,
-    help='title for metadata')
-parser.add_argument(
-    '-a', '--author', metavar='author', type=pdf_embedded_string,
-    help='author for metadata')
-parser.add_argument(
-    '-c', '--creator', metavar='creator', type=pdf_embedded_string,
-    help='creator for metadata')
-parser.add_argument(
-    '-p', '--producer', metavar='producer', type=pdf_embedded_string,
-    help='producer for metadata')
-parser.add_argument(
-    '-r', '--creationdate', metavar='creationdate', type=valid_date,
-    help='UTC creation date for metadata in YYYY-MM-DD or YYYY-MM-DDTHH:MM or YYYY-MM-DDTHH:MM:SS format or any format understood by python dateutil module or any format understood by `date --date`')
-parser.add_argument(
-    '-m', '--moddate', metavar='moddate', type=valid_date,
-    help='UTC modification date for metadata in YYYY-MM-DD or YYYY-MM-DDTHH:MM or YYYY-MM-DDTHH:MM:SS format or any format understood by python dateutil module or any format understood by `date --date`')
-parser.add_argument(
-    '-S', '--subject', metavar='subject', type=pdf_embedded_string,
-    help='subject for metadata')
-parser.add_argument(
-    '-k', '--keywords', metavar='kw', type=pdf_embedded_string, nargs='+',
-    help='keywords for metadata')
-parser.add_argument(
-    '-C', '--colorspace', metavar='colorspace', type=pdf_embedded_string,
-    help='force PIL colorspace (one of: RGB, L, 1, CMYK, CMYK;I)')
-parser.add_argument(
-    '-D', '--nodate', help='do not add timestamps', action="store_true")
-parser.add_argument(
-    '-v', '--verbose', help='verbose mode', action="store_true")
-parser.add_argument(
-    '-V', '--version', action='version', version='%(prog)s '+__version__,
-    help="Print version information and exit")
+  Currently, the colorspace must be forced for JPEG 2000 images that are not in
+  the RGB colorspace.  Available colorspace options are based on Python Imaging
+  Library (PIL) short handles.
 
-def main(args=None):
-    if args is None:
-        args = sys.argv[1:]
-    args = parser.parse_args(args)
+    RGB      RGB color
+    L        Grayscale
+    1        Black and white (internally converted to grayscale)
+    CMYK     CMYK color
+    CMYK;I   CMYK color with inversion
+
+Paper sizes
+
+  You can specify the short hand paper size names shown in the first column in
+  the table below as arguments to the --pagesize and --imgsize options.  The
+  width and height they are mapping to is shown in the second column.  Giving
+  the value in the second column has the same effect as giving the short hand
+  in the first column. Appending ^T (a caret/circumflex followed by the letter
+  T) turns the paper size from portrait into landscape. The postfix thus
+  symbolizes the transpose. The values are case insensitive.
+
+%s
+
+Fit options
+
+  The img2pdf options for the --fit argument are shown in the first column in
+  the table below. The function of these options can be mapped to the geometry
+  operators of imagemagick. For users who are familiar with imagemagick, the
+  corresponding operator is shown in the second column.  The third column shows
+  whether or not the aspect ratio is preserved for that option (same as in
+  imagemagick). Just like imagemagick, img2pdf tries hard to preserve the
+  aspect ratio, so if the --fit argument is not given, then the default is
+  "into" which corresponds to the absence of any operator in imagemagick.
+
+    into    |   | Y | The default. Width and height values specify maximum
+            |   |   | values.
+   ---------+---+---+----------------------------------------------------------
+    fill    | ^ | Y | Width and height values specify the minimum values.
+   ---------+---+---+----------------------------------------------------------
+    exact   | ! | N | Width and height emphatically given.
+   ---------+---+---+----------------------------------------------------------
+    shrink  | > | Y | Shrinks an image with dimensions larger than the given
+            |   |   | ones.
+   ---------+---+---+----------------------------------------------------------
+    enlarge | < | Y | Enlarges an image with dimensions smaller than the given
+            |   |   | ones.
+
+Examples
+
+  Convert two scans in JPEG format to a PDF document.
+
+    img2pdf --output out.pdf page1.jpg page2.jpg
+
+  Convert a directory of JPEG images into a PDF with printable A4 pages in
+  landscape mode. On each page, the photo takes the maximum amount of space
+  while preserving its aspect ratio and a print border of 2 cm on the top and
+  bottom and 2.5 cm on the left and right hand side.
+
+    img2pdf --output out.pdf --pagesize A4^T --border 2cm:2.5cm *.jpg
+
+  On each A4 page, fit images into a 10 cm times 15 cm rectangle but keep the
+  original image size if the image is smaller than that.
+
+    img2pdf --output out.pdf --pagesize A4 --imgsize 10cmx15cm --fit shrink *.jpg
+
+  Prepare a directory of photos to be printed borderless on photo paper with a
+  3:2 aspect ratio and rotate each page so that its orientation is the same as
+  the input image.
+
+    img2pdf --output out.pdf --pagesize 15cmx10cm --auto-orient *.jpg
+
+  Encode a grayscale JPEG2000 image. The colorspace has to be forced as img2pdf
+  cannot read it from the JPEG2000 file automatically.
+
+    img2pdf --output out.pdf --colorspace L input.jp2
+'''%rendered_papersizes)
+
+    parser.add_argument(
+        'images', metavar='infile', type=str, nargs='+',
+        help='''Specifies the input file(s) in any format that can be read by the
+        Python Imaging Library (PIL)''')
+    parser.add_argument(
+        '-v', '--verbose', action="store_true",
+        help='Makes the program operate in verbose mode')
+    parser.add_argument(
+        '-V', '--version', action='version', version='%(prog)s '+__version__,
+        help="Prints version information and exits.")
+
+    outargs = parser.add_argument_group(
+            title='General output arguments',
+            description='')
+
+    outargs.add_argument(
+        '-o', '--output', metavar='out', type=argparse.FileType('wb'),
+        default=getattr(sys.stdout, "buffer", sys.stdout),
+        help='Makes the program output to a file instead of standard output.')
+    outargs.add_argument(
+        '-C', '--colorspace', metavar='colorspace', type=pdf_embedded_string,
+        help='''
+Forces the PIL colorspace. See the epilogue for a list of possible values.
+Usually the PDF colorspace would be derived from the color space of the input
+image. This option overwrites the automatically detected colorspace from the
+input image and thus forces a certain colorspace in the output PDF /ColorSpace
+property.''')
+
+    outargs.add_argument(
+        '-D', '--nodate', action="store_true",
+        help='Suppresses timestamps in the output and thus makes the output deterministic.')
+
+    sizeargs = parser.add_argument_group(
+        title='Image and page size and layout arguments',
+        description='''\
+
+Every input image will be placed on its own page.  The image size is controlled
+by the dpi value of the input image or, if unset or missing, the default dpi of
+%.2f. By default, each page will have the same size as the image it shows.
+Thus, there will be no visible border between the image and the page border by
+default. If image size and page size are made different from each other by the
+options in this section, the image will always be centered in both dimensions.
+
+The image size and page size can be explicitly set using the --imgsize and
+--pagesize options, respectively.  If either dimension of the image size is
+specified but the same dimension of the page size is not, then the latter will
+be derived from the former using an optional minimal distance between the image
+and the page border (given by the --border option) and/or a certain fitting
+strategy (given by the --fit option). The converse happens if a dimension of
+the page size is set but the same dimension of the image size is not.
+
+Any length value in below options is represented by the meta variable L which
+is a floating point value with an optional unit appended (without a space
+between them). The default unit is pt (1.0/72 inch) and other allowed units are
+cm (centimeter), mm (millimeter), and in (inch).
+
+Any size argument of the format LxL in the options below specifies the width
+and height of a rectangle where the first L represents the width and the second
+L represents the height with an optional unit following the value as above.
+Either width or height may be omitted but in that case the separating x must
+still be present. Instead of giving the width and height explicitly, you may
+also specify some (case-insensitive) common page sizes such as letter and A4.
+See the epilogue at the bottom for a complete list of the valid sizes.
+''' % default_dpi)
+
+    sizeargs.add_argument(
+            '-S', '--pagesize', metavar='LxL', type=str, #FIXME: type
+         help='''
+Sets the size of the PDF pages. The short-option is the upper case S because
+it is an mnemonic for being bigger than the image size.''')
+
+    sizeargs.add_argument(
+            '-s', '--imgsize', metavar='LxL', type=str, #FIXME: type
+            help='''
+Sets the size of the images on the PDF pages.  In addition, the unit dpi is
+allowed which will set the image size as a value of dots per inch.  Instead of
+a unit, width and height values may also have a percentage sign appended,
+indicating a resize of the image by that percentage. The short-option is the
+lower case s because it is an mnemonic for being smaller than the page size.
+''')
+    sizeargs.add_argument(
+            '-b', '--border', metavar='L[:L[:L[:L]]]', type=str, #FIXME: type
+            help='''
+Specifies the minimal distance between the image border and the PDF page border.
+This value Is overwritten by explicit values set by --pagesize or --imgsize.
+The value will be used when calculating page dimensions from the image
+dimensions or the other way round. One, two, three or four length values can
+be given as an argument, separated by colons. One value specifies the border on
+all four sides. Two values specify the border on the top/bottom and left/right,
+respectively. Three values specify the border on the top, the left/right and
+the bottom, respectively. Four values specify the border on the top, right,
+bottom and left, respectively. This follows the convention from CSS margin and
+padding values.
+''')
+    sizeargs.add_argument(
+         '-f', '--fit', metavar='FIT', type=str,
+         help='''
+
+If --imgsize is given, fits the image using these dimensions. Otherwise, fit
+the image into the dimensions given by --pagesize.  FIT is one of into, fill,
+exact, shrink and enlarge. The default value is "into". See the epilogue at the
+bottom for a description of the FIT options.
+
+''')
+    sizeargs.add_argument(
+            '-a', '--auto-orient', action="store_true",
+            help='''
+If both dimensions of the page are given via --pagesize, conditionally swaps
+these dimensions such that the page orientation is the same as the orientation
+given via --imgsize or, if not both image dimensions are given, the same as the
+orientation of the input image. If the orientation of a page gets flipped, then
+so do the values set via the --border option.
+''')
+
+    metaargs = parser.add_argument_group(title='Arguments setting metadata', description='')
+    metaargs.add_argument(
+        '--title', metavar='title', type=pdf_embedded_string,
+        help='Sets the title metadata value')
+    metaargs.add_argument(
+        '--author', metavar='author', type=pdf_embedded_string,
+        help='Sets the author metadata value')
+    metaargs.add_argument(
+        '--creator', metavar='creator', type=pdf_embedded_string,
+        help='Sets the creator metadata value')
+    metaargs.add_argument(
+        '--producer', metavar='producer', type=pdf_embedded_string,
+        help='Sets the producer metadata value')
+    metaargs.add_argument(
+        '--creationdate', metavar='creationdate', type=valid_date,
+        help='Sets the UTC creation date metadata value in YYYY-MM-DD or YYYY-MM-DDTHH:MM or YYYY-MM-DDTHH:MM:SS format or any format understood by python dateutil module or any format understood by `date --date`')
+    metaargs.add_argument(
+        '--moddate', metavar='moddate', type=valid_date,
+        help='Sets the UTC modification date metadata value in YYYY-MM-DD or YYYY-MM-DDTHH:MM or YYYY-MM-DDTHH:MM:SS format or any format understood by python dateutil module or any format understood by `date --date`')
+    metaargs.add_argument(
+        '--subject', metavar='subject', type=pdf_embedded_string,
+        help='Sets the subject metadata value')
+    metaargs.add_argument(
+        '--keywords', metavar='kw', type=pdf_embedded_string, nargs='+',
+        help='Sets the keywords metadata value')
+
+    args = parser.parse_args()
 
     args.output.write(
         convert(
