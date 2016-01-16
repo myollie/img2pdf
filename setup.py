@@ -1,9 +1,12 @@
 from setuptools import setup
 
+VERSION="0.1.6~git"
+
 setup (
     name='img2pdf',
-    version='0.1.0',
+    version=VERSION,
     author = "Johannes 'josch' Schauer",
+    author_email = 'j.schauer@email.de',
     description = "Convert images to PDF via direct JPEG inclusion.",
     long_description = open('README.md').read(),
     license = "LGPL",
@@ -15,12 +18,15 @@ setup (
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: Implementation :: CPython',
         'License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)',
         'Programming Language :: Python',
         'Natural Language :: English',
         'Operating System :: OS Independent'],
-    url = 'http://pypi.python.org/pypi/img2pdf',
+    url = 'https://github.com/josch/img2pdf',
+    download_url = 'https://github.com/josch/img2pdf/archive/'+VERSION+'.tar.gz',
     package_dir={"": "src"},
     py_modules=['img2pdf', 'jp2'],
     include_package_data = True,

@@ -85,6 +85,6 @@ def parsejp2(data):
 if __name__ == "__main__":
     import sys
     width, height, colorspace = parsejp2(open(sys.argv[1]).read())
-    print "width = %d"%width
-    print "height = %d"%height
-    print "colorspace = %s"%colorspace
+    sys.stdout.write("width = %d"%width)
+    sys.stdout.write("height = %d"%height)
+    sys.stdout.write("colorspace = %s"%colorspace)
