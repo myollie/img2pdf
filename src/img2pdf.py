@@ -127,10 +127,19 @@ class pdfdoc(object):
         # pdf units = 1/72 inch
         pdf_x, pdf_y = 72.0*width/dpi[0], 72.0*height/dpi[1]
 
+        print(pdf_x)
+        print(pdf_y)
+
         if pdf_x < 3.00 or pdf_y < 3.00:
             warning_out("pdf width or height is below 3.00 - decrease the dpi")
-        elif pdf_x > 200.0 or pdf_y > 200.0:
-            error_out(("pdf width or height is above 200.00 - increase the dpi")
+        elif pdf_x > 14400.0 or pdf_y > 14400.0:
+            #error_out(("pdf width or height is above 200.00 - increase the dpi")
+            warning_out("pdf width or height would be above 200\" - squeezed inside")
+            x_scale = 14400.0 / pdf_x
+            y_scale = 14400.0 / pdf_y
+            scale = min(x_scale, y_scale) * 0.999
+            pdf_x *= scale
+            pdf_y *= scale
 
         # either embed the whole jpeg or deflate the bitmap representation
         if imgformat is "JPEG":
