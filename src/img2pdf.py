@@ -202,34 +202,39 @@ class pdfdoc(object):
         self.addobj(image)
 
     def tostring(self):
+        stream = cStringIO()
+        self.tostream(stream)
+        return stream.getvalue()
+
+    def tostream(self, stream):
         # add info as last object
         self.addobj(self.info)
 
         xreftable = list()
 
-        result = ("%%PDF-1.%d\n"%self.version).encode()
+        stream.write(("%%PDF-1.%d\n"%self.version).encode())
 
         xreftable.append(b"0000000000 65535 f \n")
         for o in self.objects:
-            xreftable.append(("%010d 00000 n \n"%len(result)).encode())
-            result += o.tostring()
+            xreftable.append(("%010d 00000 n \n"%stream.tell()).encode())
+            stream.write(o.tostring())
 
-        xrefoffset = len(result)
-        result += b"xref\n"
-        result += ("0 %d\n"%len(xreftable)).encode()
+        xrefoffset = stream.tell()
+        stream.write(b"xref\n")
+        stream.write(("0 %d\n"%len(xreftable)).encode())
         for x in xreftable:
-            result += x
-        result += b"trailer\n"
-        result += parse({b"/Size": len(xreftable), b"/Info": self.info, b"/Root": self.catalog})+b"\n"
-        result += b"startxref\n"
-        result += ("%d\n"%xrefoffset).encode()
-        result += b"%%EOF\n"
-        return result
+            stream.write(x)
+        stream.write(b"trailer\n")
+        stream.write(parse({b"/Size": len(xreftable), b"/Info": self.info, b"/Root": self.catalog})+b"\n")
+        stream.write(b"startxref\n")
+        stream.write(("%d\n"%xrefoffset).encode())
+        stream.write(b"%%EOF\n")
+
 
 def convert(images, dpi=None, pagesize=(None, None, None), title=None,
             author=None, creator=None, producer=None, creationdate=None,
             moddate=None, subject=None, keywords=None, colorspace=None,
-            nodate=False, verbose=False):
+            nodate=False, verbose=False, outputstream=None):
 
     pagesize_options = pagesize[2]
 
@@ -343,6 +348,10 @@ def convert(images, dpi=None, pagesize=(None, None, None), title=None,
             pdf_x, pdf_y = 72.0*width/float(ndpi[0]), 72.0*height/float(ndpi[1])
 
         pdf.addimage(color, width, height, imgformat, imgdata, pdf_x, pdf_y)
+
+    if outputstream:
+        pdf.tostream(outputstream)
+        return outputstream
 
     return pdf.tostring()
 
@@ -644,12 +653,11 @@ def main(args=None):
         args = sys.argv[1:]
     args = parser.parse_args(args)
 
-    args.output.write(
-        convert(
-            args.images, args.dpi, args.pagesize, args.title, args.author,
-            args.creator, args.producer, args.creationdate, args.moddate,
-            args.subject, args.keywords, args.colorspace, args.nodate,
-            args.verbose))
+    convert(
+        args.images, args.dpi, args.pagesize, args.title, args.author,
+        args.creator, args.producer, args.creationdate, args.moddate,
+        args.subject, args.keywords, args.colorspace, args.nodate,
+        args.verbose, outputstream=args.output)
 
 if __name__ == '__main__':
     main()
