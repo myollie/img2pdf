@@ -146,10 +146,10 @@ class pdfdoc(object):
 
         if pdf_x < 3.00 or pdf_y < 3.00:
             warning_out("pdf width or height is below 3.00\" - decrease the dpi")
-        elif pdf_x > 200.0 or pdf_y > 200.0:
+        elif pdf_x > 14400.0 or pdf_y > 14400.0:
             warning_out("pdf width or height would be above 200\" - squeezed inside")
-            x_scale = 200.0 / pdf_x
-            y_scale = 200.0 / pdf_y
+            x_scale = 14400.0 / pdf_x
+            y_scale = 14400.0 / pdf_y
             scale = min(x_scale, y_scale) * 0.999
             pdf_x *= scale
             pdf_y *= scale
